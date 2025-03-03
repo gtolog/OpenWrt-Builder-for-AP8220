@@ -8,7 +8,7 @@ on:
 
 env:
   REMOTE_REPOSITORY: gtolog/openwrt-ipq
-  REMOTE_BRANCH: 24.10-nss-ap8220
+  REMOTE_BRANCH: 24.10-nss-ap8220-test
   CONFIG_FILE: build.config
   CUSTOM_FILES_PATH: files/
   RELEASE_PREFIX: openwrt-qualcommax-ipq807x
