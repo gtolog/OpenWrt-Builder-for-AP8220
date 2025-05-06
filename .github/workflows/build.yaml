@@ -8,13 +8,16 @@ on:
 
 env:
   REMOTE_REPOSITORY: gtolog/openwrt-ipq
-  REMOTE_BRANCH: 24.10-nss-ap8220-test
+  REMOTE_BRANCH: 24.10-nss-ap8220
+  TARGET: qualcommax
+  SUBTARGET: ipq807x
+  DEVICE: ap8220
   CONFIG_FILE: build.config
   CUSTOM_FILES_PATH: files/
   RELEASE_PREFIX: openwrt-qualcommax-ipq807x
-  # NSS_PACKAGES_REPOSITORY: qosmio/nss-packages
-  # NSS_PACKAGES_REPOSITORY_BRANCH: NSS-12.5-K6.x
-
+  NSS_PACKAGES_REPOSITORY: qosmio/nss-packages
+  NSS_PACKAGES_REPOSITORY_BRANCH: NSS-12.5-K6.x
+  
   TZ: Asia/Shanghai
 
 jobs:
@@ -30,25 +33,165 @@ jobs:
       - name: Check for new commits
         id: check_new_commits
         run: |
+          # Get the latest commit sha from the remote repository
           latest_commit_sha=$(curl -sL "https://api.github.com/repos/${{ env.REMOTE_REPOSITORY }}/commits?sha=${{ env.REMOTE_BRANCH }}&per_page=1" | jq -r '.[0].sha')
+    
+          # Get the last built commit sha from the release body
           last_built_commit_sha=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'Build Commit: \K\w+' || echo '')
-          echo "new_commits=$([[ "$latest_commit_sha" != "$last_built_commit_sha" ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+    
+          # Print commit SHAs for debugging
+          echo "Latest commit sha from remote repository: $latest_commit_sha"
+          echo "Last built commit sha from remote repository: $last_built_commit_sha"
+    
+          # Compare commit SHAs and set new_commits output
+          if [[ "$latest_commit_sha" != "$last_built_commit_sha" && -n "$latest_commit_sha" ]]; then
+            echo "new_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_commits=false" >> $GITHUB_OUTPUT
+          fi
+    
+          # Output latest commit sha for future steps
           echo "latest_commit_sha=$latest_commit_sha" >> $GITHUB_OUTPUT
-      # - name: Check for new commits in NSS Packages Repository
-      #   id: check_nss_packages_repo_new_commits
-      #   run: |
-      #     nss_packages_repo_latest_commit_sha=$(curl -sL "https://api.github.com/repos/${{ env.NSS_PACKAGES_REPOSITORY }}/commits?sha=${{ env.NSS_PACKAGES_REPOSITORY_BRANCH }}&per_page=1" | jq -r '.[0].sha')
-      #     nss_packages_repo_last_built_commit_sha=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'NSS Packages Commit: \K\w+' || echo '')
-      #     echo "new_commits=$([[ "$nss_packages_repo_latest_commit_sha" != "$nss_packages_repo_last_built_commit_sha" ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-      #     echo "latest_commit_sha=$nss_packages_repo_latest_commit_sha" >> $GITHUB_OUTPUT
 
+      - name: Check for new commits in NSS Packages Repository
+        id: check_nss_packages_repo_new_commits
+        run: |
+          # Get the latest commit sha from the NSS packages repository
+          latest_commit_sha=$(curl -sL "https://api.github.com/repos/${{ env.NSS_PACKAGES_REPOSITORY }}/commits?sha=${{ env.NSS_PACKAGES_REPOSITORY_BRANCH }}&per_page=1" | jq -r '.[0].sha')
+    
+          # Get the last built commit sha from the release body
+          last_built_commit_sha=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'NSS Packages Commit: \K\w+' || echo '')
+    
+          # Print commit SHAs for debugging
+          echo "Latest commit sha from nss packages repository: $latest_commit_sha"
+          echo "Last built commit sha from nss packages repository: $last_built_commit_sha"
+    
+          # Compare commit SHAs and set new_commits output
+          if [[ "$latest_commit_sha" != "$last_built_commit_sha" && -n "$latest_commit_sha" ]]; then
+            echo "new_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_commits=false" >> $GITHUB_OUTPUT
+          fi
+    
+          # Output latest commit sha for future steps
+          echo "latest_commit_sha=$latest_commit_sha" >> $GITHUB_OUTPUT
+          
   build:
     name: Build OpenWrt
     needs: check_commits
-    # if: needs.check_commits.outputs.new_commits == 'true' || needs.check_commits.outputs.nss_packages_repo_new_commits == 'true' || github.event_name == 'workflow_dispatch'
-    if: needs.check_commits.outputs.new_commits == 'true' || github.event_name == 'workflow_dispatch'
+    if: needs.check_commits.outputs.new_commits == 'true' || needs.check_commits.outputs.nss_packages_repo_new_commits == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
+      #- name: Debug output values
+      #  run: |
+      #    echo "needs.check_commits.outputs.new_commits: ${{ needs.check_commits.outputs.new_commits }}"
+      #    echo "needs.check_commits.outputs.nss_packages_repo_new_commits: ${{ needs.check_commits.outputs.nss_packages_repo_new_commits }}"
+      #    echo "Latest commit sha from remote repository: ${{ needs.check_commits.outputs.latest_commit_sha }}"
+      #    echo "Latest commit sha from NSS packages repository: ${{ needs.check_commits.outputs.nss_packages_repo_latest_commit_sha }}"
+
+      #- name: Free up disk space before installation
+      #  run: |
+      #    echo "Before cleanup:"
+      #    df -h
+      #    sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/boost
+      #    sudo apt-get clean
+      #    sudo apt-get autoremove -y
+      #    echo "After cleanup:"
+      #    df -h
+      
+      - name: Before freeing up disk space
+        run: |
+          echo "Before freeing up disk space"
+          echo "=============================================================================="
+          df -hT
+          echo "=============================================================================="
+
+      #- name: "Optimize Disk Space"
+      #  uses: "hugoalh/disk-space-optimizer-ghaction@v0.8.1"
+      #  with:
+      #    operate_sudo: "True"
+      #    general_include: ".+"
+      #    general_exclude: |-
+      #      ^GCC$
+      #      ^G\+\+$
+      #      Clang
+      #      LLVM
+      #    docker_include: ".+"
+      #    docker_prune: "True"
+      #    docker_clean: "True"
+      #    apt_prune: "True"
+      #    apt_clean: "True"
+      #    homebrew_prune: "True"
+      #    homebrew_clean: "True"
+      #    npm_prune: "True"
+      #    npm_clean: "True"
+      #    os_swap: "True"
+
+      - name: Freeing up disk space
+        uses: easimon/maximize-build-space@master
+        with: 
+          root-reserve-mb: 2048
+          swap-size-mb: 1
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - name: Free up disk space complete
+        run: |
+          echo "Free up disk space complete"
+          echo "=============================================================================="
+          df -hT
+          echo "=============================================================================="
+
+      - name: Checkout remote repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REMOTE_REPOSITORY }}
+          ref: ${{ env.REMOTE_BRANCH }}
+      
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          path: "builder_repo"
+
+      - name: Add extra packages
+        run: |
+          # Clone extra LuCI packages directly into the correct directory
+          git clone --depth=1 --single-branch https://github.com/gSpotx2f/luci-app-temp-status package/extra-packages/luci-app-temp-status
+          git clone --depth=1 --single-branch https://github.com/gSpotx2f/luci-app-cpu-status-mini package/extra-packages/luci-app-cpu-status-mini
+          git clone --depth=1 --single-branch https://github.com/sbwml/luci-app-airconnect package/extra-packages/luci-app-airconnect
+          git clone --depth=1 --single-branch https://github.com/sbwml/package_kernel_r8152 package/extra-packages/package_kernel_r8152
+          git clone --depth=1 --single-branch https://github.com/gtolog/openwrt-msd_lite package/extra-packages/openwrt-msd_lite
+
+          # Clone only msd_lite from immortalwrt without unnecessary files
+          # git clone --depth=1 --filter=blob:none --sparse --single-branch --no-checkout https://github.com/immortalwrt/packages.git package/extra-packages/immortalwrt-packages
+          # git -C package/extra-packages/immortalwrt-packages sparse-checkout set net/msd_lite
+          # git -C package/extra-packages/immortalwrt-packages checkout
+          # Keep msd_lite inside extra-packages to maintain structure
+          # mv package/extra-packages/immortalwrt-packages/net/msd_lite package/extra-packages/
+          # rm -rf package/extra-packages/immortalwrt-packages
+          
+      - name: Cache ccache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-kernel-${{ runner.os }}-${{ needs.check_commits.outputs.latest_commit_sha }}-${{ needs.check_commits.outputs.nss_packages_repo_latest_commit_sha }}
+          #restore-keys: |
+          #  ccache-kernel-${{ runner.os }}-
+
+      - name: Cache built host tools
+        id: cache-built-host-tools
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ github.workspace }}/staging_dir/host
+            ${{ github.workspace }}/build_dir/host
+          key: host-tools-${{ runner.os }}-${{ needs.check_commits.outputs.latest_commit_sha }}-${{ needs.check_commits.outputs.nss_packages_repo_latest_commit_sha }}
+          #restore-keys: |
+          #  host-tools-${{ runner.os }}-
+          
       - name: Install dependencies
         run: |
           sudo apt update
@@ -57,31 +200,9 @@ jobs:
             gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
             python3-setuptools rsync swig unzip zlib1g-dev file wget
           sudo apt full-upgrade -y
-      
-      - name: Checkout remote repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REMOTE_REPOSITORY }}
-          ref: ${{ env.REMOTE_BRANCH }}
-      
-      # - name: Change NSS-Packages branch
-      #   run: |
-      #     sed -i 's|src-git nss_packages https://github.com/qosmio/nss-packages.git;NSS-12.5-K6.x|src-git nss_packages https://github.com/qosmio/nss-packages.git;NSS-12.5-K6.x-NAPI|' feeds.conf.default
-      #     cat feeds.conf.default
-      
-      - name: Checkout current repository
-        uses: actions/checkout@v4
-        with:
-          path: "custom_repo"
-
-      - name: Add extra packages
-        run: |
-          git clone --depth=1 https://github.com/gSpotx2f/luci-app-temp-status package/luci-app-temp-status
-          git clone --depth=1 https://github.com/gSpotx2f/luci-app-cpu-status-mini package/luci-app-cpu-status-mini
-          git clone --depth=1 https://github.com/sbwml/luci-app-airconnect package/luci-app-airconnect
-          git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon package/luci-theme-argon
-          git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config package/luci-app-argon-config
-      
+          sudo apt-get clean
+          sudo apt-get autoremove -y
+            
       - name: Update and install feeds
         run: |
           ./scripts/feeds update -a
@@ -89,28 +210,84 @@ jobs:
       
       - name: Configure firmware image
         run: |
-          mv custom_repo/${{ env.CONFIG_FILE }} .config
+          mv builder_repo/${{ env.CONFIG_FILE }} .config
           make defconfig -j$(nproc)
       
       - name: Include custom files
         run: |
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
-          mv custom_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
+          mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
+
+      - name: Add custom patches
+        run: |
+          if [ "$(ls builder_repo/patches)" ]; then
+            mv builder_repo/patches/* ./
+            for patch in *.patch; do
+              git apply --verbose "$patch"
+              echo "=== Diff after applying $patch ==="
+              git diff HEAD
+            done
+            echo "Changed files after patch application:"
+            git status
+          fi
+
+      - name: Parse toolchain file
+        run: |
+          TOOLCHAIN_STRING="$(curl "https://downloads.cdn.openwrt.org/snapshots/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/sha256sums" \
+            | grep ".*openwrt-toolchain.*tar.zst")"
+          TOOLCHAIN_FILE=$(echo "$TOOLCHAIN_STRING" | sed -n -e 's/.*\(openwrt-toolchain.*\).tar.zst/\1/p')
+          TOOLCHAIN_SHA256=$(echo "$TOOLCHAIN_STRING" | cut -d ' ' -f 1)
+          
+          echo "TOOLCHAIN_FILE=$TOOLCHAIN_FILE" >> "$GITHUB_ENV"
+          echo "TOOLCHAIN_SHA256=$TOOLCHAIN_SHA256" >> "$GITHUB_ENV"
+ 
+      - name: Cache external toolchain
+        id: cache-external-toolchain
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/${{ env.TOOLCHAIN_FILE }}
+          key: ${{ env.TOOLCHAIN_FILE }}-${{ env.TOOLCHAIN_SHA256 }}
+ 
+      - name: Download external toolchain
+        if: ${{ steps.cache-external-toolchain.outputs.cache-hit != 'true' }}
+        run: |
+          wget -O - https://downloads.cdn.openwrt.org/snapshots/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/${{ env.TOOLCHAIN_FILE }}.tar.zst \
+            | tar --zstd -xf -
+
+      - name: Configure external toolchain
+        run: |
+          ./scripts/ext-toolchain.sh \
+            --toolchain ${{ env.TOOLCHAIN_FILE }}/toolchain-* \
+            --overwrite-config \
+            --config ${{ env.TARGET }}/${{ env.SUBTARGET }}
+
+      - name: Configure host tools
+        if: ${{ steps.cache-built-host-tools.outputs.cache-hit == 'true' }}
+        run: |
+          if [[ -d "./build_dir/host" && -d "./staging_dir/host" ]]; then
+             ./scripts/ext-tools.sh --refresh
+          else
+            echo "One or both of the required directories do not exist."
+          fi
 
       - name: Download dependencies
-        run: make download V=s -j$(nproc)
+        run: make download -j$(nproc)
 
       - name: Build the firmware image
-        run: make world V=s -j$(nproc)
-      
+        run: make world -j$(nproc)
+        
+      - name: Clean up before packaging
+        run: |
+          rm -rf bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.tmp
+          
       - name: Package output
-        run: tar -cvf ipq807x-images.tar bin/targets/qualcommax/ipq807x
+        run: tar -cvf ${{ env.SUBTARGET }}-images.tar bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ipq807x-images
-          path: ipq807x-images.tar
+          name: ${{ env.SUBTARGET }}-images
+          path: ${{ env.SUBTARGET }}-images.tar
 
   release:
     name: Create release
@@ -121,10 +298,10 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ipq807x-images
+          name: ${{ env.SUBTARGET }}-images
       
       - name: Extract artifacts
-        run: tar xf ipq807x-images.tar
+        run: tar xf ${{ env.SUBTARGET }}-images.tar
       
       - name: Get current date
         run: echo "RELEASE_DATE=$(date +%F)" >> $GITHUB_ENV
@@ -132,13 +309,14 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: bin/targets/qualcommax/ipq807x/*
-          tag_name: ${{ env.RELEASE_PREFIX }}-${{ env.RELEASE_DATE }}
+          files: bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*
+          tag_name: ${{ env.RELEASE_PREFIX }}-${{ env.DEVICE }}-${{ env.RELEASE_DATE }}
           name: Updated prebuilt images ${{ env.RELEASE_DATE }}
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
-            Updated prebuilt images for ${{ env.RELEASE_DATE }}
+            Updated prebuilt images for ${{ env.DEVICE }}
             Build Commit: ${{ needs.check_commits.outputs.latest_commit_sha }}
+            NSS Packages Commit: ${{ needs.check_commits.outputs.nss_packages_repo_latest_commit_sha }}
       
       - name: Clean up old releases
         uses: dev-drprasad/delete-older-releases@master
