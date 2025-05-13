@@ -1,0 +1,275 @@
+diff --git a/modules/luci-base/po/zh_Hans/base.po b/modules/luci-base/po/zh_Hans/base.po
+index 7eb609ce0f..4097e20181 100644
+--- a/modules/luci-base/po/zh_Hans/base.po
++++ b/modules/luci-base/po/zh_Hans/base.po
+@@ -12514,3 +12514,11 @@ msgstr "{example_nx} 返回 {nxdomain}。"
+ #: modules/luci-compat/luasrc/view/cbi/delegator.htm:20
+ msgid "« Back"
+ msgstr "« 后退"
++
++#: modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js:96
++msgid "Performance Overview"
++msgstr "性能概览"
++
++#: modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js:100
++msgid "Temperature"
++msgstr "当前温度"
+diff --git a/modules/luci-base/root/usr/share/rpcd/ucode/luci b/modules/luci-base/root/usr/share/rpcd/ucode/luci
+index e104225d0f..5206c5d069 100644
+--- a/modules/luci-base/root/usr/share/rpcd/ucode/luci
++++ b/modules/luci-base/root/usr/share/rpcd/ucode/luci
+@@ -585,6 +585,160 @@ const methods = {
+ 
+ 			return { result: ports };
+ 		}
++	},
++
++	getCPUInfo: {
++		call: function() {
++			// 1. Get DISTRIB_ARCH from /etc/openwrt_release
++			let arch = '?';
++			let release = readfile('/etc/openwrt_release');
++			if (release) {
++				let m = match(release, /DISTRIB_ARCH='([^']+)'/);
++				if (m)
++					arch = m[1];
++			}
++
++			// 2. Get CPU core count
++			let cpuinfo = readfile("/proc/cpuinfo");
++			let cores = 0;
++			
++			if (cpuinfo) {
++			    let matches = match(cpuinfo, /processor\s*:/g);
++			    if (matches)
++			        cores = length(matches);
++			}
++	
++			// 3. Get CPU frequency
++			let freq = "?";
++			let freq_raw = readfile("/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq");
++			
++			if (freq_raw) {
++				// 移除非数字字符
++				let clean = replace(freq_raw, /[^0-9]/g, "");
++				let khz = +clean;  // 强制转为数字
++				if (khz > 0) {
++					if (khz >= 1000000) {
++						// 模拟保留两位小数，整数部分 + 小数部分拼接
++						let ghz_int = (khz / 1000000) | 0;
++						let ghz_frac = ((khz % 1000000) / 10000) | 0;
++						if (ghz_frac < 10)
++							ghz_frac = "0" + ghz_frac;
++						freq = "" + ghz_int + "." + ghz_frac + "GHz";
++					} else {
++						freq = "" + ((khz / 1000) | 0) + "MHz";
++					}
++				}
++			}
++	
++			return {
++				result: `${arch} x ${cores} @ ${freq}`
++			};
++		}
++	},
++
++	getPerformanceOverview: {
++		call: function() {
++			let cpu = "?";
++			let nss = "?";
++			let conn = "?";
++			let result = [];
++	
++			// 1. CPU 使用率
++			let top = popen("top -bn1 | grep -oE '[0-9.]+%\\s+idle' | awk '{printf \"%d\", 100 - $1}' 2>/dev/null");
++			if (top) {
++				let usage_str = trim(top.read('all'));
++				top.close();
++	
++				if (length(usage_str))
++					cpu = usage_str;
++			}
++			
++			let freq = "?";
++			let freq_raw = readfile("/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_cur_freq");
++			
++			if (freq_raw) {
++				// 移除非数字字符
++				let clean = replace(freq_raw, /[^0-9]/g, "");
++				let khz = +clean;  // 强制转为数字
++				if (khz > 0) {
++					if (khz >= 1000000) {
++						// 模拟保留两位小数，整数部分 + 小数部分拼接
++						let ghz_int = (khz / 1000000) | 0;
++						let ghz_frac = ((khz % 1000000) / 10000) | 0;
++						if (ghz_frac < 10)
++							ghz_frac = "0" + ghz_frac;
++						freq = "" + ghz_int + "." + ghz_frac + "GHz";
++					} else {
++						freq = "" + ((khz / 1000) | 0) + "MHz";
++					}
++				}
++			}
++			
++			if (cpu != "?")
++				push(result, "CPU: " + cpu + "% @ " + freq);
++	
++			// 2. NSS 利用率
++			let nss_raw = readfile("/sys/kernel/debug/qca-nss-drv/stats/cpu_load_ubi");
++			if (nss_raw) {
++				let lines = split(nss_raw, "\n");
++				if (length(lines) >= 6) {
++					let parts = split(lines[5], /\s+/);
++					if (length(parts) >= 2)
++						nss = parts[1];
++				}
++			}
++			if (nss != "?")
++				push(result, "NSS: " + nss);
++
++			// 3. ECM 连接数
++			conn = readfile("/sys/kernel/debug/ecm/ecm_db/connection_count_simple");
++			if (conn != "?")
++				push(result, "ECM: " + conn);
++			
++			// 拼接结果
++			let overview = "";
++			for (let i = 0; i < length(result); i++) {
++				if (i > 0)
++					overview += "  /  ";
++				overview += result[i];
++			}
++	
++			return { result: overview };
++		}
++	},
++
++	getTempInfo: {
++		call: function() {
++			let base = "/sys/devices/virtual/thermal";
++			let max_temp = -1;
++	
++			for (let dir in lsdir(base)) {
++				if (!match(dir, /^thermal_zone[0-9]+$/))
++					continue;
++	
++				let temp_file = base + "/" + dir + "/temp";
++				let raw = readfile(temp_file);
++				if (!raw)
++					continue;
++	
++				let clean = replace(raw, /[^0-9]/g, "");
++				let temp = +clean;
++	
++				if (temp > max_temp)
++					max_temp = temp;
++			}
++	
++			let result = "N/A";
++			if (max_temp > 0) {
++				let int_part = (max_temp / 1000) | 0;
++				let frac_part = ((max_temp % 1000) / 100) | 0;
++				result = "" + int_part + "." + frac_part + "°C";
++			}
++	
++			return {
++				result: result
++			};
++		}
+ 	}
+ };
+ 
+diff --git a/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js b/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js
+index 45f7b4acae..94daa3a387 100644
+--- a/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js
++++ b/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js
+@@ -18,6 +18,21 @@ var callSystemInfo = rpc.declare({
+ 	method: 'info'
+ });
+ 
++var callCPUInfo = rpc.declare({
++	object: 'luci',
++	method: 'getCPUInfo'
++});
++
++var callPerformanceOverview = rpc.declare({
++	object: 'luci',
++	method: 'getPerformanceOverview'
++});
++
++var callTempInfo = rpc.declare({
++	object: 'luci',
++	method: 'getTempInfo'
++});
++
+ return baseclass.extend({
+ 	title: _('System'),
+ 
+@@ -25,6 +40,9 @@ return baseclass.extend({
+ 		return Promise.all([
+ 			L.resolveDefault(callSystemBoard(), {}),
+ 			L.resolveDefault(callSystemInfo(), {}),
++			L.resolveDefault(callCPUInfo(), {}),
++			L.resolveDefault(callPerformanceOverview(), {}),
++			L.resolveDefault(callTempInfo(), {}),
+ 			L.resolveDefault(callLuciVersion(), { revision: _('unknown version'), branch: 'LuCI' })
+ 		]);
+ 	},
+@@ -32,7 +50,10 @@ return baseclass.extend({
+ 	render: function(data) {
+ 		var boardinfo   = data[0],
+ 		    systeminfo  = data[1],
+-		    luciversion = data[2];
++		    cpuinfo     = data[2],
++		    performanceoverview    = data[3],
++		    tempinfo    = data[4],
++		    luciversion = data[5];
+ 
+ 		luciversion = luciversion.branch + ' ' + luciversion.revision;
+ 
+@@ -54,7 +75,7 @@ return baseclass.extend({
+ 		var fields = [
+ 			_('Hostname'),         boardinfo.hostname,
+ 			_('Model'),            boardinfo.model,
+-			_('Architecture'),     boardinfo.system,
++			_('Architecture'),     cpuinfo.result ? boardinfo.system + ' / ' + cpuinfo.result : boardinfo.system,
+ 			_('Target Platform'),  (L.isObject(boardinfo.release) ? boardinfo.release.target : ''),
+ 			_('Firmware Version'), (L.isObject(boardinfo.release) ? boardinfo.release.description + ' / ' : '') + (luciversion || ''),
+ 			_('Kernel Version'),   boardinfo.kernel,
+@@ -66,6 +87,16 @@ return baseclass.extend({
+ 				systeminfo.load[2] / 65535.0
+ 			) : null
+ 		];
++		
++		if (performanceoverview.result) {
++		    fields.push(_('Performance Overview'));
++		    fields.push(performanceoverview.result);
++		}
++		
++		if (tempinfo.result) {
++		    fields.push(_('Temperature'));
++		    fields.push(tempinfo.result);
++		}
+ 
+ 		var table = E('table', { 'class': 'table' });
+ 
+@@ -78,4 +109,4 @@ return baseclass.extend({
+ 
+ 		return table;
+ 	}
+-});
++});
+\ No newline at end of file
+diff --git a/modules/luci-mod-status/root/usr/share/rpcd/acl.d/luci-mod-status.json b/modules/luci-mod-status/root/usr/share/rpcd/acl.d/luci-mod-status.json
+index 200631e97b..e79ce16521 100644
+--- a/modules/luci-mod-status/root/usr/share/rpcd/acl.d/luci-mod-status.json
++++ b/modules/luci-mod-status/root/usr/share/rpcd/acl.d/luci-mod-status.json
+@@ -3,7 +3,7 @@
+ 		"description": "Grant access to realtime statistics",
+ 		"read": {
+ 			"ubus": {
+-				"luci": [ "getConntrackList", "getRealtimeStats" ],
++				"luci": [ "getConntrackList", "getRealtimeStats", "getCPUInfo", "getPerformanceOverview", "getTempInfo" ],
+ 				"network.rrdns": [ "lookup" ]
+ 			}
+ 		}
