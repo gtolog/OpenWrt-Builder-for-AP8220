@@ -159,6 +159,7 @@ jobs:
       - name: Add extra packages
         run: |
           # Clone extra LuCI packages directly into the correct directory
+          git clone --depth=1 --single-branch https://github.com/jerrykuku/luci-theme-argon package/extra-packages/luci-theme-argon
           git clone --depth=1 --single-branch https://github.com/gSpotx2f/luci-app-temp-status package/extra-packages/luci-app-temp-status
           git clone --depth=1 --single-branch https://github.com/gSpotx2f/luci-app-cpu-status-mini package/extra-packages/luci-app-cpu-status-mini
           git clone --depth=1 --single-branch https://github.com/sbwml/luci-app-airconnect package/extra-packages/luci-app-airconnect
@@ -220,14 +221,31 @@ jobs:
 
       - name: Add custom patches
         run: |
-          if [ "$(ls builder_repo/patches)" ]; then
-            mv builder_repo/patches/* ./
+          # Apply OpenWrt patches
+          if [ "$(ls builder_repo/patches/openwrt 2>/dev/null)" ]; then
+            mv builder_repo/patches/openwrt/*.patch ./
             for patch in *.patch; do
               git apply --verbose "$patch"
               echo "=== Diff after applying $patch ==="
               git diff HEAD
             done
-            echo "Changed files after patch application:"
+            echo "Changed files after OpenWrt patch application:"
+            git status
+          fi
+      
+          # Apply Luci patches
+          if [ "$(ls builder_repo/patches/luci 2>/dev/null)" ]; then
+            mkdir -p feeds/luci/patches
+            mv builder_repo/patches/luci/*.patch feeds/luci/patches/
+            cd feeds/luci
+      
+            for patch in patches/*.patch; do
+              git apply --verbose "$patch"
+              echo "=== Diff after applying $patch ==="
+              git diff HEAD
+            done
+      
+            echo "Changed files after Luci patch application:"
             git status
           fi
 
