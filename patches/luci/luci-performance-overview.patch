@@ -15,7 +15,7 @@ index 7eb609ce0f..4097e20181 100644
 +msgid "Temperature"
 +msgstr "当前温度"
 diff --git a/modules/luci-base/root/usr/share/rpcd/ucode/luci b/modules/luci-base/root/usr/share/rpcd/ucode/luci
-index e104225d0f..0123ffa178 100644
+index e104225d0f..ed6bf3a19a 100644
 --- a/modules/luci-base/root/usr/share/rpcd/ucode/luci
 +++ b/modules/luci-base/root/usr/share/rpcd/ucode/luci
 @@ -585,6 +585,171 @@ const methods = {
@@ -92,7 +92,7 @@ index e104225d0f..0123ffa178 100644
 +			let result = [];
 +	
 +			// 1. CPU 使用率
-+			let top = popen("top -bn1 | grep -oE '[0-9.]+%\\s+idle' | awk '{printf \"%d\", 100 - $1}' 2>/dev/null");
++			let top = popen("top -n1 | grep '^CPU:' | awk '{printf \"%d\", 100 - $8}' 2>/dev/null");
 +			if (top) {
 +				let usage_str = trim(top.read('all'));
 +				top.close();
