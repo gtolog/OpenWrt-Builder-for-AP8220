@@ -150,11 +150,12 @@ jobs:
         with:
           repository: ${{ env.REMOTE_REPOSITORY }}
           ref: ${{ env.REMOTE_BRANCH }}
-      
-      - name: Checkout current repository
-        uses: actions/checkout@v4
-        with:
-          path: "builder_repo"
+          
+      - name: Cherry-pick ap8220 support commit
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "actions@github.com"
+          git cherry-pick b5e39197f0d85c83b5b95f2850e12c72c6391ef2
 
       - name: Add extra packages
         run: |
@@ -174,11 +175,10 @@ jobs:
           # mv package/extra-packages/immortalwrt-packages/net/msd_lite package/extra-packages/
           # rm -rf package/extra-packages/immortalwrt-packages
 
-      - name: Cherry-pick ap8220 support commit
-        run: |
-          git config user.name "GitHub Action"
-          git config user.email "actions@github.com"
-          git cherry-pick b5e39197f0d85c83b5b95f2850e12c72c6391ef2
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          path: "builder_repo"
           
       - name: Cache ccache
         uses: actions/cache@v3
