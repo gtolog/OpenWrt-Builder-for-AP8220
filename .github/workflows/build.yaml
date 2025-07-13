@@ -7,8 +7,8 @@ on:
   #  - cron: "0 18 * * *"
 
 env:
-  REMOTE_REPOSITORY: qosmio/openwrt-ipq
-  REMOTE_BRANCH: 24.10-nss
+  REMOTE_REPOSITORY: gtolog/openwrt-ipq
+  REMOTE_BRANCH: 24.10-nss-ap8220
   TARGET: qualcommax
   SUBTARGET: ipq807x
   DEVICE: ap8220
@@ -150,12 +150,6 @@ jobs:
         with:
           repository: ${{ env.REMOTE_REPOSITORY }}
           ref: ${{ env.REMOTE_BRANCH }}
-          
-      - name: Cherry-pick ap8220 support commit
-        run: |
-          git config user.name "GitHub Action"
-          git config user.email "actions@github.com"
-          git cherry-pick b5e39197f0d85c83b5b95f2850e12c72c6391ef2
 
       - name: Add extra packages
         run: |
