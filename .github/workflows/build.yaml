@@ -7,8 +7,8 @@ on:
   #  - cron: "0 18 * * *"
 
 env:
-  REMOTE_REPOSITORY: gtolog/openwrt-ipq
-  REMOTE_BRANCH: 24.10-nss-ap8220
+  REMOTE_REPOSITORY: qosmio/openwrt-ipq
+  REMOTE_BRANCH: 24.10-nss
   TARGET: qualcommax
   SUBTARGET: ipq807x
   DEVICE: ap8220
@@ -173,6 +173,12 @@ jobs:
           # Keep msd_lite inside extra-packages to maintain structure
           # mv package/extra-packages/immortalwrt-packages/net/msd_lite package/extra-packages/
           # rm -rf package/extra-packages/immortalwrt-packages
+
+      - name: Cherry-pick ap8220 support commit
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "actions@github.com"
+          git cherry-pick b5e39197f0d85c83b5b95f2850e12c72c6391ef2
           
       - name: Cache ccache
         uses: actions/cache@v3
