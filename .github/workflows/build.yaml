@@ -7,8 +7,8 @@ on:
   #  - cron: "0 18 * * *"
 
 env:
-  REMOTE_REPOSITORY: gtolog/openwrt-ipq
-  REMOTE_BRANCH: 24.10-nss-ap8220
+  REMOTE_REPOSITORY: qosmio/openwrt-ipq
+  REMOTE_BRANCH: 24.10-nss
   TARGET: qualcommax
   SUBTARGET: ipq807x
   DEVICE: ap8220
@@ -173,6 +173,41 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: "builder_repo"
+
+      - name: Include custom files
+        run: |
+          mkdir -p ${{ env.CUSTOM_FILES_PATH }}
+          mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
+
+      - name: Add custom patches
+        run: |
+          # Apply OpenWrt patches
+          if [ "$(ls builder_repo/patches/openwrt 2>/dev/null)" ]; then
+            mv builder_repo/patches/openwrt/*.patch ./
+            for patch in *.patch; do
+              git apply --verbose "$patch"
+              echo "=== Diff after applying $patch ==="
+              git diff HEAD
+            done
+            echo "Changed files after OpenWrt patch application:"
+            git status
+          fi
+      
+          # Apply Luci patches
+          if [ "$(ls builder_repo/patches/luci 2>/dev/null)" ]; then
+            mkdir -p feeds/luci/patches
+            mv builder_repo/patches/luci/*.patch feeds/luci/patches/
+            cd feeds/luci
+      
+            for patch in patches/*.patch; do
+              git apply --verbose "$patch"
+              echo "=== Diff after applying $patch ==="
+              git diff HEAD
+            done
+      
+            echo "Changed files after Luci patch application:"
+            git status
+          fi
           
       - name: Cache ccache
         uses: actions/cache@v3
@@ -213,41 +248,6 @@ jobs:
         run: |
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           make defconfig -j$(nproc)
-      
-      - name: Include custom files
-        run: |
-          mkdir -p ${{ env.CUSTOM_FILES_PATH }}
-          mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
-
-      - name: Add custom patches
-        run: |
-          # Apply OpenWrt patches
-          if [ "$(ls builder_repo/patches/openwrt 2>/dev/null)" ]; then
-            mv builder_repo/patches/openwrt/*.patch ./
-            for patch in *.patch; do
-              git apply --verbose "$patch"
-              echo "=== Diff after applying $patch ==="
-              git diff HEAD
-            done
-            echo "Changed files after OpenWrt patch application:"
-            git status
-          fi
-      
-          # Apply Luci patches
-          if [ "$(ls builder_repo/patches/luci 2>/dev/null)" ]; then
-            mkdir -p feeds/luci/patches
-            mv builder_repo/patches/luci/*.patch feeds/luci/patches/
-            cd feeds/luci
-      
-            for patch in patches/*.patch; do
-              git apply --verbose "$patch"
-              echo "=== Diff after applying $patch ==="
-              git diff HEAD
-            done
-      
-            echo "Changed files after Luci patch application:"
-            git status
-          fi
 
       - name: Parse toolchain file
         run: |
