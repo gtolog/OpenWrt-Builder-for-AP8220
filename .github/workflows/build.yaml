@@ -178,36 +178,6 @@ jobs:
         run: |
           mkdir -p ${{ env.CUSTOM_FILES_PATH }}
           mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
-
-      - name: Add custom patches
-        run: |
-          # Apply OpenWrt patches
-          if [ "$(ls builder_repo/patches/openwrt 2>/dev/null)" ]; then
-            mv builder_repo/patches/openwrt/*.patch ./
-            for patch in *.patch; do
-              git apply --verbose "$patch"
-              echo "=== Diff after applying $patch ==="
-              git diff HEAD
-            done
-            echo "Changed files after OpenWrt patch application:"
-            git status
-          fi
-      
-          # Apply Luci patches
-          if [ "$(ls builder_repo/patches/luci 2>/dev/null)" ]; then
-            mkdir -p feeds/luci/patches
-            mv builder_repo/patches/luci/*.patch feeds/luci/patches/
-            cd feeds/luci
-      
-            for patch in patches/*.patch; do
-              git apply --verbose "$patch"
-              echo "=== Diff after applying $patch ==="
-              git diff HEAD
-            done
-      
-            echo "Changed files after Luci patch application:"
-            git status
-          fi
           
       - name: Cache ccache
         uses: actions/cache@v3
@@ -243,7 +213,37 @@ jobs:
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+
+      - name: Apply custom patches
+        run: |
+          # Apply OpenWrt patches
+          if [ "$(ls builder_repo/patches/openwrt 2>/dev/null)" ]; then
+            mv builder_repo/patches/openwrt/*.patch ./
+            for patch in *.patch; do
+              git apply --verbose "$patch"
+              echo "=== Diff after applying $patch ==="
+              git diff HEAD
+            done
+            echo "Changed files after OpenWrt patch application:"
+            git status
+          fi
       
+          # Apply Luci patches
+          if [ "$(ls builder_repo/patches/luci 2>/dev/null)" ]; then
+            mkdir -p feeds/luci/patches
+            mv builder_repo/patches/luci/*.patch feeds/luci/patches/
+            cd feeds/luci
+      
+            for patch in patches/*.patch; do
+              git apply --verbose "$patch"
+              echo "=== Diff after applying $patch ==="
+              git diff HEAD
+            done
+      
+            echo "Changed files after Luci patch application:"
+            git status
+          fi
+          
       - name: Configure firmware image
         run: |
           mv builder_repo/${{ env.CONFIG_FILE }} .config
