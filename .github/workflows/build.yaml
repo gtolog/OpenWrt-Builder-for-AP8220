@@ -150,6 +150,11 @@ jobs:
         with:
           repository: ${{ env.REMOTE_REPOSITORY }}
           ref: ${{ env.REMOTE_BRANCH }}
+      
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          path: "builder_repo"
 
       - name: Add extra packages
         run: |
@@ -168,52 +173,7 @@ jobs:
           # Keep msd_lite inside extra-packages to maintain structure
           # mv package/extra-packages/immortalwrt-packages/net/msd_lite package/extra-packages/
           # rm -rf package/extra-packages/immortalwrt-packages
-
-      - name: Checkout current repository
-        uses: actions/checkout@v4
-        with:
-          path: "builder_repo"
-
-      - name: Include custom files
-        run: |
-          mkdir -p ${{ env.CUSTOM_FILES_PATH }}
-          mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
-
-      - name: Update and install feeds
-        run: |
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
-
-      - name: Apply custom patches
-        run: |
-          # Apply OpenWrt patches
-          if [ "$(ls builder_repo/patches/openwrt 2>/dev/null)" ]; then
-            mv builder_repo/patches/openwrt/*.patch ./
-            for patch in *.patch; do
-              git apply --verbose "$patch"
-              echo "=== Diff after applying $patch ==="
-              git diff HEAD
-            done
-            echo "Changed files after OpenWrt patch application:"
-            git status
-          fi
-      
-          # Apply Luci patches
-          if [ "$(ls builder_repo/patches/luci 2>/dev/null)" ]; then
-            mkdir -p feeds/luci/patches
-            mv builder_repo/patches/luci/*.patch feeds/luci/patches/
-            cd feeds/luci
-      
-            for patch in patches/*.patch; do
-              git apply --verbose "$patch"
-              echo "=== Diff after applying $patch ==="
-              git diff HEAD
-            done
-      
-            echo "Changed files after Luci patch application:"
-            git status
-          fi
-      
+          
       - name: Cache ccache
         uses: actions/cache@v3
         with:
@@ -243,11 +203,51 @@ jobs:
           sudo apt full-upgrade -y
           sudo apt-get clean
           sudo apt-get autoremove -y
-
+            
+      - name: Update and install feeds
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+      
       - name: Configure firmware image
         run: |
           mv builder_repo/${{ env.CONFIG_FILE }} .config
           make defconfig -j$(nproc)
+      
+      - name: Include custom files
+        run: |
+          mkdir -p ${{ env.CUSTOM_FILES_PATH }}
+          mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
+
+      - name: Add custom patches
+        run: |
+          # Apply OpenWrt patches
+          if [ "$(ls builder_repo/patches/openwrt 2>/dev/null)" ]; then
+            mv builder_repo/patches/openwrt/*.patch ./
+            for patch in *.patch; do
+              git apply --verbose "$patch"
+              echo "=== Diff after applying $patch ==="
+              git diff HEAD
+            done
+            echo "Changed files after OpenWrt patch application:"
+            git status
+          fi
+      
+          # Apply Luci patches
+          if [ "$(ls builder_repo/patches/luci 2>/dev/null)" ]; then
+            mkdir -p feeds/luci/patches
+            mv builder_repo/patches/luci/*.patch feeds/luci/patches/
+            cd feeds/luci
+      
+            for patch in patches/*.patch; do
+              git apply --verbose "$patch"
+              echo "=== Diff after applying $patch ==="
+              git diff HEAD
+            done
+      
+            echo "Changed files after Luci patch application:"
+            git status
+          fi
 
       - name: Parse toolchain file
         run: |
