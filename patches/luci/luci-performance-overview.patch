@@ -20,7 +20,7 @@ index e104225d0f..ed6bf3a19a 100644
 +++ b/modules/luci-base/root/usr/share/rpcd/ucode/luci
 @@ -630,6 +630,171 @@ const methods = {
  
- 			return { result: version };
+ 			return { result: ports };
  		}
 +	},
 +
