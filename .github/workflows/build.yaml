@@ -165,6 +165,7 @@ jobs:
           git clone --depth=1 --single-branch https://github.com/sbwml/luci-app-airconnect package/extra-packages/luci-app-airconnect
           git clone --depth=1 --single-branch https://github.com/sbwml/package_kernel_r8152 package/extra-packages/package_kernel_r8152
           git clone --depth=1 --single-branch https://github.com/gtolog/openwrt-msd_lite package/extra-packages/openwrt-msd_lite
+          git clone --depth=1 --single-branch https://github.com/qosmio/packages-extra package/extra-packages/luci-mod-status-nss
 
           # Clone only msd_lite from immortalwrt without unnecessary files
           # git clone --depth=1 --filter=blob:none --sparse --single-branch --no-checkout https://github.com/immortalwrt/packages.git package/extra-packages/immortalwrt-packages
