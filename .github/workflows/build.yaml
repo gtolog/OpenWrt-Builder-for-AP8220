@@ -226,12 +226,12 @@ jobs:
           if [ "$(ls builder_repo/patches/openwrt 2>/dev/null)" ]; then
             mv builder_repo/patches/openwrt/*.patch ./
             for patch in *.patch; do
-              git apply --verbose --ignore-whitespace --reject "$patch" || {
-                echo "Patch $patch failed! Showing rejection file:"
-                find . -name "*.rej" -exec cat {} +
-                exit 1
-              }
+              git apply --verbose "$patch"
+              echo "=== Diff after applying $patch ==="
+              git diff HEAD
             done
+            echo "Changed files after OpenWrt patch application:"
+            git status
           fi
       
           # Apply Luci patches
