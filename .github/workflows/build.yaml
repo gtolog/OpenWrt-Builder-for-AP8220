@@ -332,7 +332,7 @@ jobs:
         run: tar xf ${{ env.SUBTARGET }}-images.tar
       
       - name: Get current date
-        run: echo "RELEASE_DATE=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+        run: echo "RELEASE_DATE=$(date +'%Y-%m-%d-%H-%M-%S')" >> $GITHUB_ENV
       
       - name: Create release
         uses: softprops/action-gh-release@v2
