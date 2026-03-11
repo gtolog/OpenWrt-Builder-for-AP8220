@@ -198,54 +198,50 @@ literal 0
 HcmV?d00001
 
 diff --git a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-ap8220.dts b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-ap8220.dts
-index 75977afa15..407fcfef41 100644
+index 9ccde6d4ea..385fbf58ee 100644
 --- a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-ap8220.dts
 +++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-ap8220.dts
-@@ -1,338 +1,255 @@
--// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+@@ -13,13 +13,17 @@
+ / {
+ 	model = "Aliyun AP8220";
+ 	compatible = "aliyun,ap8220", "qcom,ipq8074";
 -
--/dts-v1/;
--
--#include "ipq8074.dtsi"
--#include "ipq8074-ac-cpu.dtsi"
--#include "ipq8074-ess.dtsi"
--#include "ipq8074-nss.dtsi"
--#include <dt-bindings/gpio/gpio.h>
--#include <dt-bindings/input/input.h>
--#include <dt-bindings/leds/common.h>
--
--/ {
--	model = "Aliyun AP8220";
--	compatible = "aliyun,ap8220", "qcom,ipq8074";
--
--	aliases {
--		serial0 = &blsp1_uart5;
++	
+ 	aliases {
+ 		serial0 = &blsp1_uart5;
 -		led-boot = &led_power;
 -		led-failsafe = &led_power;
 -		led-running = &led_power;
 -		led-upgrade = &led_power;
--	};
++		serial1 = &blsp1_uart3;
++		led-boot = &led_pw;
++		led-failsafe = &led_pw;
++		led-running = &led_pw;
++		led-upgrade = &led_pw;
++		ethernet4 = &dp5;
++		ethernet5 = &dp6;
++		label-mac-device = &dp6;
+ 	};
+ 
+ 	chosen {
+@@ -31,51 +35,35 @@
+ 		compatible = "gpio-keys";
+ 		pinctrl-0 = <&button_pins>;
+ 		pinctrl-names = "default";
 -
--	chosen {
--		stdout-path = "serial0:115200n8";
--		bootargs-append = " root=/dev/ubiblock0_1";
--	};
--
--	keys {
--		compatible = "gpio-keys";
--		pinctrl-0 = <&button_pins>;
--		pinctrl-names = "default";
--
--		reset {
--			label = "reset";
--			linux,code = <KEY_RESTART>;
++		
+ 		reset {
+ 			label = "reset";
++			gpios = <&tlmm 0x42 GPIO_ACTIVE_LOW>;
+ 			linux,code = <KEY_RESTART>;
 -			gpios = <&tlmm 66 GPIO_ACTIVE_LOW>;
--		};
--	};
+ 		};
+ 	};
 -
--	leds {
--		compatible = "gpio-leds";
--
++	
+ 	leds {
+ 		compatible = "gpio-leds";
+ 
 -		led_power: power {
 -			color = <LED_COLOR_ID_GREEN>;
 -			function = LED_FUNCTION_POWER;
@@ -257,22 +253,31 @@ index 75977afa15..407fcfef41 100644
 -			function = LED_FUNCTION_WLAN_2GHZ;
 -			gpios = <&tlmm 47 GPIO_ACTIVE_HIGH>;
 -			linux,default-trigger = "phy1radio";
--		};
--
++		led_pw: led-pw {
++			label = "pw:status";
++			gpios = <&tlmm 0x2e GPIO_ACTIVE_HIGH>;
+ 		};
+ 
 -		wlan5g {
 -			color = <LED_COLOR_ID_GREEN>;
 -			function = LED_FUNCTION_WLAN_5GHZ;
 -			gpios = <&tlmm 48 GPIO_ACTIVE_HIGH>;
 -			linux,default-trigger = "phy0radio";
--		};
--
++		led_2g: led-2g {
++			label = "2g:status";
++			gpios = <&tlmm 0x2f GPIO_ACTIVE_HIGH>;
+ 		};
+ 
 -		bluetooth {
 -			color = <LED_COLOR_ID_GREEN>;
 -			function = LED_FUNCTION_BLUETOOTH;
 -			gpios = <&tlmm 50 GPIO_ACTIVE_HIGH>;
--		};
++		led_5g: led-5g {
++			label = "5g:status";
++			gpios = <&tlmm 0x30 GPIO_ACTIVE_HIGH>;
+ 		};
 -	};
--
+ 
 -	gpio-export {
 -		compatible = "gpio-export";
 -
@@ -280,174 +285,163 @@ index 75977afa15..407fcfef41 100644
 -			gpio-export,name = "ble_power";
 -			gpio-export,output = <1>;
 -			gpios = <&tlmm 54 GPIO_ACTIVE_HIGH>;
--		};
--	};
--};
--
--&tlmm {
--	mdio_pins: mdio-pins {
--		mdc {
--			pins = "gpio68";
--			function = "mdc";
++		led_bt: led-bt {
++			label = "bt:status";
++			gpios = <&tlmm 0x32 GPIO_ACTIVE_HIGH>;
+ 		};
+ 	};
+ };
+@@ -85,33 +73,38 @@
+ 		mdc {
+ 			pins = "gpio68";
+ 			function = "mdc";
 -			drive-strength = <8>;
--			bias-pull-up;
--		};
--
--		mdio {
--			pins = "gpio69";
--			function = "mdio";
++			drive-strength = <0x08>;
+ 			bias-pull-up;
+ 		};
+ 
+ 		mdio {
+ 			pins = "gpio69";
+ 			function = "mdio";
 -			drive-strength = <8>;
--			bias-pull-up;
--		};
--	};
--
++			drive-strength = <0x08>;
+ 			bias-pull-up;
+ 		};
+ 	};
+ 
 -	button_pins: button-pins {
 -		mux {
--			pins = "gpio66";
--			function = "gpio";
++	button_pins: button_pins {
++		reset_button {
+ 			pins = "gpio66";
+ 			function = "gpio";
 -			drive-strength = <8>;
--			bias-pull-up;
--		};
--	};
--};
--
--&blsp1_spi1 {
--	status = "okay";
--
--	flash@0 {
--		compatible = "jedec,spi-nor";
--		#address-cells = <1>;
--		#size-cells = <1>;
--		reg = <0>;
--		spi-max-frequency = <50000000>;
--
--		partitions {
--			compatible = "fixed-partitions";
--			#address-cells = <1>;
--			#size-cells = <1>;
--
--			partition@0 {
--				label = "0:sbl1";
++			drive-strength = <0x08>;
+ 			bias-pull-up;
+ 		};
+ 	};
+ };
+ 
+ &blsp1_spi1 {
++	pinctrl-0 = <&spi_0_pins>;
++	pinctrl-names = "default";
++	cs-select = <0>;
+ 	status = "okay";
+ 
+ 	flash@0 {
+ 		compatible = "jedec,spi-nor";
++		#address-cells = <1>;
++		#size-cells = <1>;
+ 		reg = <0>;
+ 		spi-max-frequency = <50000000>;
+ 
+@@ -122,44 +115,37 @@
+ 
+ 			partition@0 {
+ 				label = "0:sbl1";
 -				reg = <0x0 0x50000>;
 -				read-only;
--			};
--
--			partition@50000 {
--				label = "0:mibib";
--				reg = <0x50000 0x10000>;
++				reg = <0x00 0x50000>;
+ 			};
+ 
+ 			partition@50000 {
+ 				label = "0:mibib";
+ 				reg = <0x50000 0x10000>;
 -				read-only;
--			};
--
--			partition@60000 {
--				label = "0:qsee";
--				reg = <0x60000 0x180000>;
+ 			};
+ 
+ 			partition@60000 {
+ 				label = "0:qsee";
+ 				reg = <0x60000 0x180000>;
 -				read-only;
--			};
--
--			partition@1e0000 {
--				label = "0:devcfg";
--				reg = <0x1e0000 0x10000>;
+ 			};
+ 
+ 			partition@1e0000 {
+ 				label = "0:devcfg";
+ 				reg = <0x1e0000 0x10000>;
 -				read-only;
--			};
--
--			partition@1f0000 {
--				label = "0:apdp";
--				reg = <0x1f0000 0x10000>;
+ 			};
+ 
+ 			partition@1f0000 {
+ 				label = "0:apdp";
+ 				reg = <0x1f0000 0x10000>;
 -				read-only;
--			};
--
--			partition@200000 {
--				label = "0:rpm";
--				reg = <0x200000 0x40000>;
+ 			};
+ 
+ 			partition@200000 {
+ 				label = "0:rpm";
+ 				reg = <0x200000 0x40000>;
 -				read-only;
--			};
--
--			partition@240000 {
--				label = "0:cdt";
--				reg = <0x240000 0x10000>;
+ 			};
+ 
+ 			partition@240000 {
+ 				label = "0:cdt";
+ 				reg = <0x240000 0x10000>;
 -				read-only;
--			};
--
--			partition@250000 {
--				label = "0:appsblenv";
--				reg = <0x250000 0x10000>;
--			};
--
--			partition@260000 {
--				label = "0:appsbl";
--				reg = <0x260000 0xa0000>;
+ 			};
+ 
+ 			partition@250000 {
+@@ -170,25 +156,21 @@
+ 			partition@260000 {
+ 				label = "0:appsbl";
+ 				reg = <0x260000 0xa0000>;
 -				read-only;
--			};
--
--			partition@300000 {
--				label = "0:art";
--				reg = <0x300000 0x40000>;
+ 			};
+ 
+ 			partition@300000 {
+ 				label = "0:art";
+ 				reg = <0x300000 0x40000>;
 -				read-only;
--			};
--
--			partition@340000 {
--				label = "0:ethphyfw";
--				reg = <0x340000 0x80000>;
+ 			};
+ 
+ 			partition@340000 {
+ 				label = "0:ethphyfw";
+ 				reg = <0x340000 0x80000>;
 -				read-only;
--			};
--
--			partition@3c0000 {
--				label = "product_info";
--				reg = <0x3c0000 0x10000>;
+ 			};
+ 
+ 			partition@3c0000 {
+ 				label = "product_info";
+ 				reg = <0x3c0000 0x10000>;
 -				read-only;
--			};
--
--			partition@3d0000 {
--				label = "mtdoops";
--				reg = <0x3d0000 0x20000>;
--			};
--
--			partition@3f0000 {
--				label = "priv_data1";
--				reg = <0x3f0000 0x10000>;
+ 			};
+ 
+ 			partition@3d0000 {
+@@ -199,17 +181,16 @@
+ 			partition@3f0000 {
+ 				label = "priv_data1";
+ 				reg = <0x3f0000 0x10000>;
 -				read-only;
--			};
--		};
--	};
--};
--
+ 			};
+ 		};
+ 	};
+ };
+ 
 -&blsp1_uart5 {
--	status = "okay";
--};
--
++&blsp1_uart3 {
+ 	status = "okay";
+ };
+ 
 -&cryptobam {
--	status = "okay";
--};
--
--&crypto {
--	status = "okay";
--};
--
--&prng {
--	status = "okay";
--};
--
--&qpic_bam {
--	status = "okay";
--};
--
--&qusb_phy_0 {
--	status = "okay";
--};
--
--&ssphy_0 {
--	status = "okay";
--};
--
--&usb_0 {
--	status = "okay";
--};
--
--&qpic_nand {
--	status = "okay";
--
--	nand@0 {
--		reg = <0>;
++&blsp1_uart5 {
+ 	status = "okay";
+ };
+ 
+@@ -217,6 +198,10 @@
+ 	status = "okay";
+ };
+ 
++&cryptobam {
++	status = "okay";
++};
++
+ &prng {
+ 	status = "okay";
+ };
+@@ -242,29 +227,15 @@
+ 
+ 	nand@0 {
+ 		reg = <0>;
 -		nand-ecc-strength = <4>;
 -		nand-ecc-step-size = <512>;
 -		nand-bus-width = <8>;
@@ -471,305 +465,6 @@ index 75977afa15..407fcfef41 100644
 -				label = "usrdata";
 -				reg = <0x6000000 0x2000000>;
 -			};
--		};
--	};
--};
--
--&mdio {
--	status = "okay";
--
--	pinctrl-0 = <&mdio_pins>;
--	pinctrl-names = "default";
--
--	qca8081_24: ethernet-phy@24 {
--		compatible = "ethernet-phy-id004d.d101";
--		reg = <24>;
--		reset-deassert-us = <10000>;
--		reset-gpios = <&tlmm 33 GPIO_ACTIVE_LOW>;
--	};
--
--	qca8081_28: ethernet-phy@28 {
--		compatible = "ethernet-phy-id004d.d101";
--		reg = <28>;
--		reset-deassert-us = <10000>;
--		reset-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
--	};
--};
--
--&switch {
--	status = "okay";
--
--	switch_lan_bmp = <ESS_PORT5>;
--	switch_wan_bmp = <ESS_PORT6>;
--	switch_mac_mode1 = <MAC_MODE_SGMII_PLUS>;
--	switch_mac_mode2 = <MAC_MODE_SGMII_PLUS>;
--
--	qcom,port_phyinfo {
--		port@5 {
--			port_id = <5>;
--			phy_address = <24>;
--			port_mac_sel = "QGMAC_PORT";
--		};
--
--		port@6 {
--			port_id = <6>;
--			phy_address = <28>;
--			port_mac_sel = "QGMAC_PORT";
--		};
--	};
--};
--
--&edma {
--	status = "okay";
--};
--
--&dp5 {
--	status = "okay";
--	phy-mode = "sgmii";
--	phy-handle = <&qca8081_24>;
--	label = "wan";
--};
--
--&dp6 {
--	status = "okay";
--	phy-handle = <&qca8081_28>;
--	label = "lan";
--};
--
--&wifi {
--	status = "okay";
--
--	qcom,ath11k-calibration-variant = "Aliyun-AP8220";
--};
-+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
-+
-+/dts-v1/;
-+
-+#include "ipq8074.dtsi"
-+#include "ipq8074-ac-cpu.dtsi"
-+#include "ipq8074-ess.dtsi"
-+#include "ipq8074-nss.dtsi"
-+#include <dt-bindings/gpio/gpio.h>
-+#include <dt-bindings/input/input.h>
-+#include <dt-bindings/leds/common.h>
-+
-+/ {
-+	model = "Aliyun AP8220";
-+	compatible = "aliyun,ap8220", "qcom,ipq8074";
-+	
-+	aliases {
-+		serial0 = &blsp1_uart5;
-+		serial1 = &blsp1_uart3;
-+		led-boot = &led_pw;
-+		led-failsafe = &led_pw;
-+		led-running = &led_pw;
-+		led-upgrade = &led_pw;
-+		ethernet4 = &dp5;
-+		ethernet5 = &dp6;
-+		label-mac-device = &dp6;
-+	};
-+
-+	chosen {
-+		stdout-path = "serial0:115200n8";
-+		bootargs-append = " root=/dev/ubiblock0_1";
-+	};
-+
-+	keys {
-+		compatible = "gpio-keys";
-+		pinctrl-0 = <&button_pins>;
-+		pinctrl-names = "default";
-+		
-+		reset {
-+			label = "reset";
-+			gpios = <&tlmm 0x42 GPIO_ACTIVE_LOW>;
-+			linux,code = <KEY_RESTART>;
-+		};
-+	};
-+	
-+	leds {
-+		compatible = "gpio-leds";
-+
-+		led_pw: led-pw {
-+			label = "pw:status";
-+			gpios = <&tlmm 0x2e GPIO_ACTIVE_HIGH>;
-+		};
-+
-+		led_2g: led-2g {
-+			label = "2g:status";
-+			gpios = <&tlmm 0x2f GPIO_ACTIVE_HIGH>;
-+		};
-+
-+		led_5g: led-5g {
-+			label = "5g:status";
-+			gpios = <&tlmm 0x30 GPIO_ACTIVE_HIGH>;
-+		};
-+
-+		led_bt: led-bt {
-+			label = "bt:status";
-+			gpios = <&tlmm 0x32 GPIO_ACTIVE_HIGH>;
-+		};
-+	};
-+};
-+
-+&tlmm {
-+	mdio_pins: mdio-pins {
-+		mdc {
-+			pins = "gpio68";
-+			function = "mdc";
-+			drive-strength = <0x08>;
-+			bias-pull-up;
-+		};
-+
-+		mdio {
-+			pins = "gpio69";
-+			function = "mdio";
-+			drive-strength = <0x08>;
-+			bias-pull-up;
-+		};
-+	};
-+
-+	button_pins: button_pins {
-+		reset_button {
-+			pins = "gpio66";
-+			function = "gpio";
-+			drive-strength = <0x08>;
-+			bias-pull-up;
-+		};
-+	};
-+};
-+
-+&blsp1_spi1 {
-+	pinctrl-0 = <&spi_0_pins>;
-+	pinctrl-names = "default";
-+	cs-select = <0>;
-+	status = "okay";
-+
-+	flash@0 {
-+		compatible = "jedec,spi-nor";
-+		#address-cells = <1>;
-+		#size-cells = <1>;
-+		reg = <0>;
-+		spi-max-frequency = <50000000>;
-+
-+		partitions {
-+			compatible = "fixed-partitions";
-+			#address-cells = <1>;
-+			#size-cells = <1>;
-+
-+			partition@0 {
-+				label = "0:sbl1";
-+				reg = <0x00 0x50000>;
-+			};
-+
-+			partition@50000 {
-+				label = "0:mibib";
-+				reg = <0x50000 0x10000>;
-+			};
-+
-+			partition@60000 {
-+				label = "0:qsee";
-+				reg = <0x60000 0x180000>;
-+			};
-+
-+			partition@1e0000 {
-+				label = "0:devcfg";
-+				reg = <0x1e0000 0x10000>;
-+			};
-+
-+			partition@1f0000 {
-+				label = "0:apdp";
-+				reg = <0x1f0000 0x10000>;
-+			};
-+
-+			partition@200000 {
-+				label = "0:rpm";
-+				reg = <0x200000 0x40000>;
-+			};
-+
-+			partition@240000 {
-+				label = "0:cdt";
-+				reg = <0x240000 0x10000>;
-+			};
-+
-+			partition@250000 {
-+				label = "0:appsblenv";
-+				reg = <0x250000 0x10000>;
-+			};
-+
-+			partition@260000 {
-+				label = "0:appsbl";
-+				reg = <0x260000 0xa0000>;
-+			};
-+
-+			partition@300000 {
-+				label = "0:art";
-+				reg = <0x300000 0x40000>;
-+			};
-+
-+			partition@340000 {
-+				label = "0:ethphyfw";
-+				reg = <0x340000 0x80000>;
-+			};
-+
-+			partition@3c0000 {
-+				label = "product_info";
-+				reg = <0x3c0000 0x10000>;
-+			};
-+
-+			partition@3d0000 {
-+				label = "mtdoops";
-+				reg = <0x3d0000 0x20000>;
-+			};
-+
-+			partition@3f0000 {
-+				label = "priv_data1";
-+				reg = <0x3f0000 0x10000>;
-+			};
-+		};
-+	};
-+};
-+
-+&blsp1_uart3 {
-+	status = "okay";
-+};
-+
-+&blsp1_uart5 {
-+	status = "okay";
-+};
-+
-+&crypto {
-+	status = "okay";
-+};
-+
-+&cryptobam {
-+	status = "okay";
-+};
-+
-+&prng {
-+	status = "okay";
-+};
-+
-+&qpic_bam {
-+	status = "okay";
-+};
-+
-+&qusb_phy_0 {
-+	status = "okay";
-+};
-+
-+&ssphy_0 {
-+	status = "okay";
-+};
-+
-+&usb_0 {
-+	status = "okay";
-+};
-+
-+&qpic_nand {
-+	status = "okay";
-+
-+	nand@0 {
-+		reg = <0>;
 +		#address-cells = <0x01>;
 +		#size-cells = <0x01>;
 +		nand-ecc-strength = <0x04>;
@@ -779,82 +474,45 @@ index 75977afa15..407fcfef41 100644
 +		partition@0 {
 +			label = "rootfs";
 +			reg = <0x00 0x8000000>;
-+		};
-+	};
-+};
-+
-+&mdio {
-+	status = "okay";
-+
-+	pinctrl-0 = <&mdio_pins>;
-+	pinctrl-names = "default";
-+
-+	qca8081_24: ethernet-phy@24 {
-+		compatible = "ethernet-phy-id004d.d101";
-+		reg = <24>;
-+		reset-deassert-us = <10000>;
-+		reset-gpios = <&tlmm 33 GPIO_ACTIVE_LOW>;
-+	};
-+
-+	qca8081_28: ethernet-phy@28 {
-+		compatible = "ethernet-phy-id004d.d101";
-+		reg = <28>;
-+		reset-deassert-us = <10000>;
-+		reset-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
-+	};
-+};
-+
-+&switch {
-+	status = "okay";
-+
+ 		};
+ 	};
+ };
+@@ -293,10 +264,10 @@
+ &switch {
+ 	status = "okay";
+ 
+-	switch_lan_bmp = <ESS_PORT5>;
+-	switch_wan_bmp = <ESS_PORT6>;
+-	switch_mac_mode1 = <MAC_MODE_SGMII_PLUS>;
+-	switch_mac_mode2 = <MAC_MODE_SGMII_PLUS>;
 +	switch_lan_bmp = <ESS_PORT6>;
 +	switch_wan_bmp = <ESS_PORT5>;
 +	switch_mac_mode1 = <MAC_MODE_SGMII_CHANNEL0>;
 +	switch_mac_mode2 = <MAC_MODE_SGMII_CHANNEL0>;
+ 
+ 	qcom,port_phyinfo {
+ 		port@5 {
+@@ -304,6 +275,7 @@
+ 			phy_address = <24>;
+ 			port_mac_sel = "QGMAC_PORT";
+ 		};
 +
-+	qcom,port_phyinfo {
-+		port@5 {
-+			port_id = <5>;
-+			phy_address = <24>;
-+			port_mac_sel = "QGMAC_PORT";
-+		};
-+
-+		port@6 {
-+			port_id = <6>;
-+			phy_address = <28>;
-+			port_mac_sel = "QGMAC_PORT";
-+		};
-+	};
-+};
-+
-+&edma {
-+	status = "okay";
-+};
-+
-+&dp5 {
-+	status = "okay";
-+	phy-mode = "sgmii";
-+	phy-handle = <&qca8081_24>;
-+	label = "wan";
-+};
-+
-+&dp6 {
-+	status = "okay";
-+	phy-handle = <&qca8081_28>;
-+	label = "lan";
-+};
-+
-+&wifi {
-+	status = "okay";
+ 		port@6 {
+ 			port_id = <6>;
+ 			phy_address = <28>;
+@@ -331,6 +303,6 @@
+ 
+ &wifi {
+ 	status = "okay";
+-
 +	qcom,ath11k-fw-memory-mode = <1>;
-+	qcom,ath11k-calibration-variant = "Aliyun-AP8220";
-+};
-
+ 	qcom,ath11k-calibration-variant = "Aliyun-AP8220";
+ };
 diff --git a/target/linux/qualcommax/image/ipq807x.mk b/target/linux/qualcommax/image/ipq807x.mk
-index a63380690b..b30fcfe522 100644
+index 75af3d068f..f2fae8377b 100644
 --- a/target/linux/qualcommax/image/ipq807x.mk
 +++ b/target/linux/qualcommax/image/ipq807x.mk
-@@ -42,7 +42,8 @@ define Device/aliyun_ap8220
+@@ -49,7 +49,8 @@ define Device/aliyun_ap8220
  	PAGESIZE := 2048
  	DEVICE_DTS_CONFIG := config@ac02
  	SOC := ipq8071
