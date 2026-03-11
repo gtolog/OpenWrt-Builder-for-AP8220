@@ -19,6 +19,7 @@ env:
   NSS_PACKAGES_REPOSITORY_BRANCH: NSS-12.5-K6.x
   
   TZ: Asia/Shanghai
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   check_commits:
@@ -34,10 +35,14 @@ jobs:
         id: check_new_commits
         run: |
           # Get the latest commit sha from the remote repository
-          latest_commit_sha=$(curl -sL "https://api.github.com/repos/${{ env.REMOTE_REPOSITORY }}/commits?sha=${{ env.REMOTE_BRANCH }}&per_page=1" | jq -r '.[0].sha')
+          latest_commit_sha=$(curl -sL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ env.REMOTE_REPOSITORY }}/commits?sha=${{ env.REMOTE_BRANCH }}&per_page=1" | jq -r '.[0].sha')
     
           # Get the last built commit sha from the release body
-          last_built_commit_sha=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'Build Commit: \K\w+' || echo '')
+          last_built_commit_sha=$(curl -sL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'Build Commit: \K\w+' || echo '')
     
           # Print commit SHAs for debugging
           echo "Latest commit sha from remote repository: $latest_commit_sha"
@@ -57,10 +62,14 @@ jobs:
         id: check_nss_packages_repo_new_commits
         run: |
           # Get the latest commit sha from the NSS packages repository
-          latest_commit_sha=$(curl -sL "https://api.github.com/repos/${{ env.NSS_PACKAGES_REPOSITORY }}/commits?sha=${{ env.NSS_PACKAGES_REPOSITORY_BRANCH }}&per_page=1" | jq -r '.[0].sha')
+          latest_commit_sha=$(curl -sL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ env.NSS_PACKAGES_REPOSITORY }}/commits?sha=${{ env.NSS_PACKAGES_REPOSITORY_BRANCH }}&per_page=1" | jq -r '.[0].sha')
     
           # Get the last built commit sha from the release body
-          last_built_commit_sha=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'NSS Packages Commit: \K\w+' || echo '')
+          last_built_commit_sha=$(curl -sL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'NSS Packages Commit: \K\w+' || echo '')
     
           # Print commit SHAs for debugging
           echo "Latest commit sha from nss packages repository: $latest_commit_sha"
