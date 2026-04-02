@@ -3,8 +3,8 @@ name: OpenWrt Builder
 on:
   workflow_dispatch:
   # push:
-  # schedule:
-  #  - cron: "0 18 * * *"
+  schedule:
+   - cron: "0 18 * * *"
 
 env:
   REMOTE_REPOSITORY: qosmio/openwrt-ipq
