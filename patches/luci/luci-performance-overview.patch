@@ -190,15 +190,7 @@ index c779619745..42d9efd56e 100644
  
  	getInitList: {
  		args: { name: 'name' },
-@@ -244,7 +409,7 @@ const methods = {
- 				netifd_vrf: false,
- 			};
- 
--			const wifi_features = [ 
-+			const wifi_features = [
- 				'11ac',
- 				'11ax',
- 				'11be',
+
 diff --git a/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js b/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js
 index 3a2d2f1f2f..deeaef72ca 100644
 --- a/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js
