@@ -26,13 +26,14 @@ jobs:
     name: Check for new commits
     runs-on: ubuntu-24.04
     outputs:
-      new_commits: ${{ steps.check_new_commits.outputs.new_commits }}
-      latest_commit_sha: ${{ steps.check_new_commits.outputs.latest_commit_sha }}
-      nss_packages_repo_new_commits: ${{ steps.check_nss_packages_repo_new_commits.outputs.new_commits }}
-      nss_packages_repo_latest_commit_sha: ${{ steps.check_nss_packages_repo_new_commits.outputs.latest_commit_sha }}
+      remote_new_commits: ${{ steps.check_remote_new_commits.outputs.new_commits }}
+      remote_latest_commit_sha: ${{ steps.check_remote_new_commits.outputs.latest_commit_sha }}
+      nss_packages_new_commits: ${{ steps.check_nss_packages_new_commits.outputs.new_commits }}
+      nss_packages_latest_commit_sha: ${{ steps.check_nss_packages_new_commits.outputs.latest_commit_sha }}
+      self_new_commits: ${{ steps.check_self_new_commits.outputs.new_commits }}
     steps:
-      - name: Check for new commits
-        id: check_new_commits
+      - name: Check for new commits in Remote Repository
+        id: check_remote_new_commits
         run: |
           # Get the latest commit sha from the remote repository
           latest_commit_sha=$(curl -sL \
@@ -42,11 +43,11 @@ jobs:
           # Get the last built commit sha from the release body
           last_built_commit_sha=$(curl -sL \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'Build Commit: \K\w+' || echo '')
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'Remote Commit: \K\w+' || echo '')
     
           # Print commit SHAs for debugging
-          echo "Latest commit sha from remote repository: $latest_commit_sha"
-          echo "Last built commit sha from remote repository: $last_built_commit_sha"
+          echo "Latest commit sha (Remote): $latest_commit_sha"
+          echo "Last built commit sha (Remote): $last_built_commit_sha"
     
           # Compare commit SHAs and set new_commits output
           if [[ "$latest_commit_sha" != "$last_built_commit_sha" && -n "$latest_commit_sha" ]]; then
@@ -59,7 +60,7 @@ jobs:
           echo "latest_commit_sha=$latest_commit_sha" >> $GITHUB_OUTPUT
 
       - name: Check for new commits in NSS Packages Repository
-        id: check_nss_packages_repo_new_commits
+        id: check_nss_packages_new_commits
         run: |
           # Get the latest commit sha from the NSS packages repository
           latest_commit_sha=$(curl -sL \
@@ -72,8 +73,8 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'NSS Packages Commit: \K\w+' || echo '')
     
           # Print commit SHAs for debugging
-          echo "Latest commit sha from nss packages repository: $latest_commit_sha"
-          echo "Last built commit sha from nss packages repository: $last_built_commit_sha"
+          echo "Latest commit sha (NSS): $latest_commit_sha"
+          echo "Last built commit sha (NSS): $last_built_commit_sha"
     
           # Compare commit SHAs and set new_commits output
           if [[ "$latest_commit_sha" != "$last_built_commit_sha" && -n "$latest_commit_sha" ]]; then
@@ -85,10 +86,30 @@ jobs:
           # Output latest commit sha for future steps
           echo "latest_commit_sha=$latest_commit_sha" >> $GITHUB_OUTPUT
           
+      - name: Check for new commits in Self Repository
+        id: check_self_new_commits
+        run: |
+          # 获取当前仓库最新的 Commit SHA
+          latest_commit_sha="${{ github.sha }}"
+
+          # 从最新的 Release 说明中获取上次构建的 Self Commit
+          last_built_commit_sha=$(curl -sL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.body' | grep -oP 'Self Commit: \K\w+' || echo '')
+
+          echo "Latest commit sha (Self): $latest_commit_sha"
+          echo "Last built commit sha (Self): $last_built_commit_sha"
+
+          if [[ "$latest_commit_sha" != "$last_built_commit_sha" && -n "$latest_commit_sha" ]]; then
+            echo "new_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_commits=false" >> $GITHUB_OUTPUT
+          fi
+          
   build:
     name: Build OpenWrt
     needs: check_commits
-    if: needs.check_commits.outputs.new_commits == 'true' || needs.check_commits.outputs.nss_packages_repo_new_commits == 'true' || github.event_name == 'workflow_dispatch'
+    if: needs.check_commits.outputs.remote_new_commits == 'true' || needs.check_commits.outputs.nss_packages_new_commits == 'true' || needs.check_commits.outputs.self_new_commits == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
       #- name: Debug output values
@@ -188,7 +209,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ccache-kernel-${{ runner.os }}-${{ needs.check_commits.outputs.latest_commit_sha }}-${{ needs.check_commits.outputs.nss_packages_repo_latest_commit_sha }}
+          key: ccache-kernel-${{ runner.os }}-${{ needs.check_commits.outputs.remote_latest_commit_sha }}-${{ needs.check_commits.outputs.nss_packages_latest_commit_sha }}
           #restore-keys: |
           #  ccache-kernel-${{ runner.os }}-
 
@@ -199,7 +220,7 @@ jobs:
           path: |
             ${{ github.workspace }}/staging_dir/host
             ${{ github.workspace }}/build_dir/host
-          key: host-tools-${{ runner.os }}-${{ needs.check_commits.outputs.latest_commit_sha }}-${{ needs.check_commits.outputs.nss_packages_repo_latest_commit_sha }}
+          key: host-tools-${{ runner.os }}-${{ needs.check_commits.outputs.remote_latest_commit_sha }}-${{ needs.check_commits.outputs.nss_packages_latest_commit_sha }}
           #restore-keys: |
           #  host-tools-${{ runner.os }}-
           
@@ -332,7 +353,7 @@ jobs:
         run: tar xf ${{ env.SUBTARGET }}-images.tar
       
       - name: Get current date
-        run: echo "RELEASE_DATE=$(date +'%Y-%m-%d-%H-%M-%S')" >> $GITHUB_ENV
+        run: echo "RELEASE_DATE=$(TZ='Asia/Shanghai' date +'%Y-%m-%d-%H-%M-%S')" >> $GITHUB_ENV
       
       - name: Create release
         uses: softprops/action-gh-release@v2
@@ -342,9 +363,9 @@ jobs:
           name: Updated prebuilt images ${{ env.REMOTE_BRANCH }} ${{ env.RELEASE_DATE }}
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
-            Updated prebuilt images ${{ env.REMOTE_BRANCH }} ${{ env.RELEASE_DATE }}
-            Build Commit: ${{ needs.check_commits.outputs.latest_commit_sha }}
-            NSS Packages Commit: ${{ needs.check_commits.outputs.nss_packages_repo_latest_commit_sha }}
+            Remote Commit: ${{ needs.check_commits.outputs.remote_latest_commit_sha }}
+            NSS Packages Commit: ${{ needs.check_commits.outputs.nss_packages_latest_commit_sha }}
+            Self Commit: ${{ github.sha }}
       
       - name: Clean up old releases
         uses: dev-drprasad/delete-older-releases@master
