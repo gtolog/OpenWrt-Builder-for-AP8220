@@ -239,16 +239,6 @@ jobs:
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-      
-      - name: Configure firmware image
-        run: |
-          mv builder_repo/${{ env.CONFIG_FILE }} .config
-          make defconfig -j$(nproc)
-      
-      - name: Include custom files
-        run: |
-          mkdir -p ${{ env.CUSTOM_FILES_PATH }}
-          mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
 
       - name: Add custom patches
         run: |
@@ -279,7 +269,17 @@ jobs:
             echo "Changed files after Luci patch application:"
             git status
           fi
-
+      
+      - name: Configure firmware image
+        run: |
+          mv builder_repo/${{ env.CONFIG_FILE }} .config
+          make defconfig -j$(nproc)
+      
+      - name: Include custom files
+        run: |
+          mkdir -p ${{ env.CUSTOM_FILES_PATH }}
+          mv builder_repo/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
+          
       - name: Parse toolchain file
         run: |
           TOOLCHAIN_STRING="$(curl "https://downloads.cdn.openwrt.org/snapshots/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/sha256sums" \
