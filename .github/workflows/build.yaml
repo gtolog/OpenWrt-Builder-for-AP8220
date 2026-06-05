@@ -323,7 +323,7 @@ jobs:
         run: make download -j$(nproc)
 
       - name: Build the firmware image
-        run: make world -j$(nproc)
+        run: make world -j$(nproc) V=sc
         
       - name: Clean up before packaging
         run: |
