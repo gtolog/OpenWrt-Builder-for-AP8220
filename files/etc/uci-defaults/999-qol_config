@@ -1,8 +1,4 @@
 #!/bin/sh -e
-# shellcheck disable=2034,2091,3010,3037,3060 shell=busybox
-# Custom UCI defaults script for Linksys MX4200/4300/5300 etc
-# Create folder "files/etc/uci-defaults/" in build root and copy this script there.
-# Customize to your needs.
 
 # Uncomment the following line to capture all output to a log file
 exec > /root/uci-defaults.log 2>&1
@@ -10,47 +6,14 @@ exec > /root/uci-defaults.log 2>&1
 # Set system options
 uci set system.@system[0].timezone='CST-8'
 uci set system.@system[0].zonename='Asia/Shanghai'
-
 uci commit system
 
-# Wireless default settings for radio0
-uci set wireless.default_radio0.wnm_sleep_mode='1'
-uci set wireless.default_radio0.ieee80211k='1'
-uci set wireless.default_radio0.time_advertisement='2'
-uci set wireless.default_radio0.bss_transition='1'
-uci set wireless.default_radio0.proxy_arp='1'
-
-# Wireless radio0 specific settings
-uci set wireless.radio0.htmode='HE160'
-uci set wireless.radio0.channel='36'
-uci set wireless.radio0.country='US'
-
-# Wireless default settings for radio1
-uci set wireless.default_radio1.wnm_sleep_mode='1'
-uci set wireless.default_radio1.ieee80211k='1'
-uci set wireless.default_radio1.time_advertisement='2'
-uci set wireless.default_radio1.bss_transition='1'
-uci set wireless.default_radio1.proxy_arp='1'
-
-# Wireless radio1 specific settings
-uci set wireless.radio1.htmode='HE40'
-uci set wireless.radio1.channel='1'
-uci set wireless.radio1.country='US'
-
-uci commit wireless
-
-# Network settings
-uci set network.@device[0].packet_steering='0'
-uci set network.@device[0].igmp_snooping='1'
-uci set network.@device[0].multicast_querier='1'
-uci set network.@device[0].flow_offloading='0'
-uci set network.@device[0].flow_offloading_hw='0'
-
+# 将全局网络选项中的数据包控制关闭
+uci set network.globals.packet_steering=0
 uci commit network
 
-# uHTTPd settings
-uci set uhttpd.main.redirect_https='1'
-
-uci commit uhttpd
+# 进入防火墙默认策略，关闭软硬件转发加速
+uci set firewall.@defaults[0].flow_offloading=0
+uci commit firewall
 
 exit 0
